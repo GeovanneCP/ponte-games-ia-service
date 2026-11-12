@@ -137,7 +137,97 @@ Para garantir alta disponibilidade durante testes e apresentações, o código i
 
 ---
 
+## 🌍 Conexão com os ODS da ONU (Agenda 2030)
 
+* **ODS 11 (Cidades e Comunidades Sustentáveis):** Incentiva a gestão correta de resíduos sólidos urbanos e eletroeletrônicos através de pontos de coleta inteligentes.
+* **ODS 13 (Ação contra a Mudança Global do Clima):** Reduz o descarte irregular e o impacto ambiental de metais pesados e plásticos por meio da educação ambiental gamificada.
 
+---
 
+## 🏗️ Arquitetura e Fluxo de Dados
+
+```
+[App Mobile / Estação IoT]
+       │  (Foto do resíduo via multipart/form-data)
+       ▼
+[Backend Principal - Java Spring Boot]
+       │  (POST /api/v1/ia/validar)
+       ▼
+[Microsserviço IA - Python FastAPI (Render)]
+       ├──► Pré-processamento (Pillow: redimensiona até 1024x1024)
+       ├──► Inferência Multimodal (Google Gemini + System Prompt)
+       └──► Validação Estrita de Contrato (Pydantic JSON Schema)
+       │
+       ▼ (Retorna JSON: valido, categoria, pontos_xp, mensagem)
+[Backend Java persiste XP no Banco e responde ao Cidadão]
+
+```
+
+## 🧪 Evidências de Avaliação e Testes
+
+Para homologar o comportamento da API e o rigor do filtro anti-fraude, foram realizados testes funcionais (caixa-preta) diretamente via Swagger UI (`/docs`) utilizando cenários reais e tentativas de burla:
+
+### 1. Cenário Positivo — Descarte de Lixo Eletrônico
+* **Entrada:** Imagem nítida de cabos coaxiais com conectores (`image/jpeg`).
+* **Comportamento Esperado:** Aprovar o descarte, classificar como eletrônico e atribuir entre 100 e 200 XP.
+* **Resultado Obtido (`HTTP 200 OK`):**
+  ```
+  {
+    "valido": true,
+    "categoria": "Lixo Eletrônico",
+    "material_detectado": "Cabos coaxiais com conectores",
+    "confianca": 0.98,
+    "pontos_xp": 150,
+    "mensagem_gamificada": "Excelente descarte, Player! Mais lixo eletrônico redirecionado corretamente para a reciclagem. Você ganhou +150 XP no Ponte Games!",
+    "motivo_rejeicao": ""
+  }
+    ```
+
+  2. Cenário Positivo — Resíduos Recicláveis Comuns (Plástico / Metal / Papel)
+Entrada: Imagens de garrafas PET, latas de alumínio e caixas de papelão limpas.
+
+Comportamento Esperado: Identificar o material corretamente e aplicar a tabela de pontuação correspondente (30 XP para plástico, 50 XP para metal e 20 XP para papel).
+
+Resultado Obtido (HTTP 200 OK): Classificação precisa com valido: true e pontuação aplicada conforme a regra de negócio.
+
+3. Cenário Negativo — Tentativa de Fraude (Selfie / Ambiente sem Resíduo)
+Entrada: Foto de rosto ou ambiente genérico sem nenhum material reciclável visível.
+
+Comportamento Esperado: Bloquear a pontuação (valido: false, pontos_xp: 0) e justificar a recusa.
+
+Resultado Obtido (HTTP 200 OK):
+ ```
+{
+  "valido": false,
+  "categoria": "Inválido",
+  "material_detectado": "Nenhum resíduo reciclável identificado",
+  "confianca": 0.96,
+  "pontos_xp": 0,
+  "mensagem_gamificada": "Ops! Não identificamos um material reciclável válido nesta foto.",
+  "motivo_rejeicao": "A imagem enviada não apresenta resíduos recicláveis aceitos na estação."
+}
+ ```
+4. Cenário Negativo — Resíduo Não Aceito (Orgânico)
+Entrada: Foto de restos de alimentos.
+
+Comportamento Esperado: Rejeitar o descarte por não ser reciclável seco/eletrônico.
+
+Resultado Obtido (HTTP 200 OK): Retornou valido: false, pontos_xp: 0 e alertou no motivo_rejeicao que resíduos orgânicos não são pontuados.
+
+5. Cenário Negativo — Validação de Formato de Arquivo
+Entrada: Upload de arquivo não-imagem (.pdf ou .txt) no campo foto.
+
+Comportamento Esperado: Barrar na camada de validação do FastAPI antes de consumir tokens da IA.
+
+Resultado Obtido (HTTP 400 Bad Request): Retornou {"detail": "O arquivo enviado deve ser uma imagem."}.
+
+## ⚠️ Limitações Conhecidas da IA
+Condições de Iluminação e Foco: Fotos muito escuras, tremidas ou com objetos parcialmente encobertos podem reduzir o score de confiança (confianca) ou gerar falsos negativos.
+
+Estimativa Visual de Volume/Peso: A visão computacional identifica o tipo de material e a legitimidade do descarte, mas não consegue aferir o peso exato do resíduo apenas pela imagem.
+
+Dependência de Rede e Cold Start: Por depender de API externa (Google Gemini) e estar hospedado em instância gratuita no Render, a primeira requisição após 15 minutos de ociosidade sofre latência de inicialização (~30–50s).
+
+## 🤖 Declaração de Uso de IA Generativa
+Em conformidade com as diretrizes da Global Solution FIAP, declaramos que ferramentas de IA generativa (Google Gemini) foram utilizadas como apoio na estruturação da arquitetura FastAPI, revisão de documentação técnica e elaboração de casos de teste. Todo o código-fonte, regras de negócio e prompts de sistema foram integralmente revisados, testados e validados pelos integrantes do grupo.
 
