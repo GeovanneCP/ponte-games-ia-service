@@ -18,7 +18,6 @@ Este serviço compõe a arquitetura desacoplada da plataforma **Ponte Games / Ec
 
 * **🌐 Aplicação Workwi:** https://wokwi.com/projects/480263756551656449
 * **📄 Documentação Interativa (Swagger UI):** https://ponte-games-ia-service.onrender.com/docs
-* **🎥 Vídeo Explicativo (YouTube):** *Insira aqui o link do vídeo no YouTube*
 
 ---
 
