@@ -93,16 +93,51 @@ Exemplo de Resposta (200 OK — Descarte Inválido)
 }
 ```
 
+### 🔑 Como obter sua chave de API (`GEMINI_API_KEY`)
+
+Para rodar o microsserviço localmente, você precisará de uma chave gratuita do Google AI Studio:
+
+1. Acesse o **[Google AI Studio](https://aistudio.google.com/)** e faça login com sua conta Google.
+2. No menu lateral esquerdo, clique em **Get API key** (ou acesse diretamente [aistudio.google.com/apikey](https://aistudio.google.com/apikey)).
+3. Clique no botão **Create API key**.
+4. Selecione um projeto existente no Google Cloud ou clique em **Create API key in new project** para gerar um novo automaticamente.
+5. Copie a chave gerada (ela começa com `AIza...`) e guarde-a em local seguro — **nunca suba essa chave diretamente no código ou no GitHub**.
+
 ## ⚙️ Execução Local
 
 Instale as dependências:
+
 pip install -r requirements.txt
 
 Configure a variável de ambiente com a chave do Google AI Studio:
+
 $env:GEMINI_API_KEY="SUA_CHAVE_AQUI"
 
 Inicie o servidor:
+
 python main.py
+
+## 🧠 Como a Inteligência Artificial Foi Utilizada
+
+Em vez de treinar um modelo tradicional de classificação de imagens do zero (que exigiria milhares de fotos rotuladas e alto custo computacional), o projeto utiliza **IA Generativa Multimodal (Vision-Language Models)** através do SDK oficial **Google GenAI** (`google-genai`).
+
+### 1. Visão Computacional Multimodal (Análise de Imagem)
+Quando o cidadão registra uma foto do resíduo, o microsserviço pré-processa a imagem em memória (redimensionando para no máximo `1024x1024` pixels via Pillow para reduzir latência e consumo de banda) e a envia junto a um *System Prompt* especializado para os modelos da família **Google Gemini**. A IA interpreta o contexto visual da cena para identificar o material predominante (`Lixo Eletrônico`, `Plástico`, `Metal` ou `Papel/Papelão`).
+
+### 2. Engenharia de Prompt e Filtro Anti-Fraude
+O comportamento do modelo foi calibrado com temperatura baixa (`temperature = 0.2`) para garantir respostas determinísticas e rigorosas na auditoria:
+* **Validação de Legitimidade:** A IA diferencia resíduos recicláveis reais de tentativas de fraude (como selfies, fotos totalmente escuras/borradas, telas de computador ou restos de comida orgânica), marcando `valido: false` e preenchendo automaticamente o campo `motivo_rejeicao` para orientar o usuário.
+* **Cálculo Dinâmico de Gamificação (XP):** Com base na complexidade e no impacto ambiental do material identificado na imagem, a própria IA atribui a pontuação correspondente (100 a 200 XP para lixo eletrônico, 50 XP para metal, 30 XP para plástico e 20 XP para papel) e redige uma mensagem personalizada de engajamento.
+
+### 3. Saídas Estruturadas (Structured Outputs com Pydantic)
+Para permitir que o backend em **Java (Spring Boot)** consuma o resultado sem falhas de *parsing*, a IA é forçada a responder estritamente dentro de um contrato JSON definido via **Pydantic** (`ResultadoAnaliseDescarte`), eliminando textos soltos ou alucinações de formato.
+
+### 4. Resiliência com Fallback Automático de Modelos
+Para garantir alta disponibilidade durante testes e apresentações, o código implementa uma fila de contingência (*fallback*): se o modelo principal (`gemini-3.5-flash-lite`) sofrer limitação de taxa ou indisponibilidade momentânea, a API alterna automaticamente para `gemini-3.8-flash` ou `gemini-3.1-flash-lite`.
+
+---
+
+
 
 
 
